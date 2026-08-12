@@ -70,7 +70,53 @@ C Community Simulator
 | Unity Engine 연동 | raylib MVP 완료 후 C 코어를 DLL 경계로 분리할 별도 2차 일정 확보 |
 | Unity Test Framework | assert 기반 테스트가 안정화되고 도입 시간이 남는 경우 |
 
-## 3. 자료구조와 모듈 방향
+## 3. 프로젝트 구조와 자료구조 방향
+
+### 3.1 예정 디렉터리 구조
+
+아래 구조는 8/30 MVP 구현을 위한 목표 구조다. 현재 문서 단계이므로 아직 없는 파일은 구현 일정에 맞춰 만든다. `raylib` 화면 코드는 `src/ui/`에 두고, 자료구조·업무 규칙·CSV 처리는 `src/core/`와 `src/storage/`에 분리한다.
+
+~~~text
+.
+├── README.md
+├── CMakeLists.txt                  # raylib를 연결할 빌드 설정(8/13 계획)
+├── include/
+│   ├── common/                     # 반환 코드, 상수, 입력 검증
+│   ├── domain/                     # Member, Post, Comment, Reaction 구조체/열거형
+│   ├── core/                       # 동적 배열 ADT와 회원·인증·글·댓글·반응 API
+│   ├── storage/                    # CSV 형식과 저장·불러오기 API
+│   └── ui/                         # 화면 상태와 raylib UI API
+├── src/
+│   ├── main.c                      # 앱 초기화, 종료, 화면 루프 진입점
+│   ├── common/                     # 오류 코드와 공통 유틸리티 구현
+│   ├── domain/                     # 도메인 기본값, 상태 전이 보조 구현
+│   ├── core/                       # 자료구조와 업무 규칙 구현
+│   ├── storage/                    # members/posts/comments/reactions CSV 구현
+│   └── ui/                         # 로그인·목록·상세·편집·프로필 raylib 화면
+├── tests/
+│   ├── core/                       # ADT·업무 규칙 assert 단위 테스트
+│   └── storage/                    # CSV 정상·경계·실패 경로 테스트
+├── data/
+│   └── sample_*.csv                # 버전 관리하는 데모 데이터만 보관
+└── docs/
+    ├── learning/                   # 독립 자료구조 학습 로드맵·학습 기록
+    ├── project/                    # WBS, ADT, 모듈, CSV, 화면 흐름 설계
+    ├── daily-log/                  # 날짜별 기획·개발 기록(개인 작업 기록)
+    └── verification/               # 테스트 계획·결과, 복잡도, 메모리 점검
+~~~
+
+### 3.2 모듈 책임
+
+| 영역 | 책임 | 대표 적용 자료구조/규칙 |
+|---|---|---|
+| `domain` | 엔터티와 상태를 선언한다. | `Member`, `Post`, `Comment`, `Reaction`, `ReactionStatus` |
+| `core/member`, `core/auth` | 회원가입, 아이디 중복 검사, 로그인·로그아웃, 정보 수정·탈퇴 처리를 맡는다. | 동적 배열, 선형 탐색, 탈퇴 시 `WITHDRAWN` 상태 |
+| `core/post` | 글 작성·조회·수정·삭제와 작성자 권한을 처리한다. | 동적 배열, ID 탐색, 삭제 시 하위 데이터 정리 |
+| `core/comment` | 댓글·대댓글 한 단계와 삭제 표시 규칙을 처리한다. | `parent_comment_id` 기반 계층 순회 |
+| `core/reaction` | 글당 사용자별 반응 하나와 집계를 관리한다. | `NONE → LIKE/DISLIKE`, `LIKE ↔ DISLIKE`만 허용 |
+| `core/search_sort` | 제목 부분 검색과 목록 정렬을 제공한다. | 선형 탐색, 비교 함수 기반 정렬 |
+| `storage` | 4개 CSV의 저장·불러오기와 참조 무결성을 확인한다. | 회원 → 글 → 댓글 → 반응 순서 복원 |
+| `ui` | 화면 입력을 C 코어 API에 전달하고 결과·오류를 표시한다. | 화면 상태 전환, 코어를 직접 우회하지 않음 |
 
 | 자료구조/개념 | 프로젝트 적용 | MVP 여부 |
 |---|---|---|
@@ -82,22 +128,24 @@ C Community Simulator
 | 연결 리스트 | 댓글 자식 목록 또는 별도 학습 구현 | 선택 |
 | 스택·큐·일반 그래프 | 별도 2차 학습/기능 확장 | 제외 |
 
-### 3.1 예상 모듈
+### 3.3 예상 모듈 파일
 
 ~~~text
 include/
-  member.h, member_list.h, auth_service.h
-  post.h, post_list.h, comment.h, comment_service.h
-  reaction.h, reaction_service.h, search_sort.h, storage.h
-  app_state.h, ui.h
+  common/result.h, common/input_validation.h
+  domain/member.h, domain/post.h, domain/comment.h, domain/reaction.h
+  core/member_list.h, core/auth_service.h, core/post_service.h
+  core/comment_service.h, core/reaction_service.h, core/search_sort.h
+  storage/csv_storage.h, ui/app_state.h, ui/screens.h
 src/
-  위 헤더에 대응하는 구현 파일과 main.c
+  main.c와 위 헤더에 대응하는 구현 파일
 tests/
+  core/*_test.c, storage/*_test.c
 data/
   sample_members.csv, sample_posts.csv, sample_comments.csv, sample_reactions.csv
 ~~~
 
-### 3.2 화면 최소 흐름
+### 3.4 화면 최소 흐름
 
 ~~~text
 시작 → 로그인 ─→ 회원가입
@@ -140,6 +188,15 @@ data/
 | 8/30 | 최종 마감 | README, 회고, 발표 Q&A, 미완성 범위 명시 | F-01~F-10 완료 여부 기록 |
 
 버퍼일에는 새로운 핵심 기능을 추가하지 않는다. raylib는 8/22~8/24의 필수 작업이므로 버퍼 기능이 아니다.
+
+### 5.1 일자별 산출물 연결 원칙
+
+| 구간 | 코드·화면 산출물 | 함께 갱신할 문서 |
+|---|---|---|
+| 8/12~8/13 | ADT 초안, 모듈 경계, 반환 코드, 목표 디렉터리 | `docs/project/`의 ADT·모듈·CSV 설계 |
+| 8/14~8/20 | 회원·글·댓글·반응·검색·CSV C 코어 | 각 기능의 업무 규칙, API, 테스트 케이스 |
+| 8/22~8/24 | 로그인/가입, 목록/상세/편집, 댓글/반응, 프로필 raylib 화면 | 화면 흐름, 수동 시나리오, 화면 캡처 |
+| 8/25~8/30 | 테스트 정리, 오류 수정, 시연 가능한 샘플 데이터 | 검증 결과, 복잡도·메모리 점검, README |
 
 ## 6. 검증과 리스크
 
