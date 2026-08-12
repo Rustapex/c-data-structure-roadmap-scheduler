@@ -55,14 +55,33 @@ C 언어로 자료구조를 학습하고, 직접 구현한 C 코어와 raylib UI
 ## 프로젝트 구조
 
 ~~~text
-include/  공개 구조체와 함수 선언
-src/      C 코어와 raylib UI 구현
-tests/    assert 기반 모듈 테스트
-data/     버전 관리하는 샘플 CSV
-docs/
-  learning/  학습 로드맵과 기록
-  project/   WBS와 설계 문서
+.
+├── README.md
+├── CMakeLists.txt                  # raylib를 연결할 빌드 설정(구현 예정)
+├── include/
+│   ├── common/                     # 반환 코드, 상수, 입력 검증
+│   ├── domain/                     # Member·Post·Comment·Reaction 선언
+│   ├── core/                       # 동적 배열 ADT와 업무 규칙 API
+│   ├── storage/                    # CSV 저장·불러오기 API
+│   └── ui/                         # 화면 상태와 raylib UI API
+├── src/
+│   ├── main.c                      # 앱 초기화와 화면 루프
+│   ├── common/, domain/, core/     # C 자료구조와 서비스 구현
+│   ├── storage/                    # 4개 CSV 처리 구현
+│   └── ui/                         # raylib 화면 구현
+├── tests/
+│   ├── core/                       # ADT·업무 규칙 단위 테스트
+│   └── storage/                    # CSV 정상·경계·실패 경로 테스트
+├── data/
+│   └── sample_*.csv                # 버전 관리하는 데모 데이터만 보관
+└── docs/
+    ├── learning/                   # 독립 자료구조 학습 로드맵·학습 기록
+    ├── project/                    # WBS, ADT, 모듈, CSV, 화면 흐름 설계
+    ├── daily-log/                  # 날짜별 기획·개발 기록
+    └── verification/               # 테스트·복잡도·메모리 점검
 ~~~
+
+세부 모듈 책임과 일자별 산출물 연결은 [개발 WBS](docs/project/wbs-development.md)에서 관리합니다. 위 구조는 목표 구조이므로, 실제 파일이 생기기 전에는 구현 완료 상태를 뜻하지 않습니다.
 
 ## 문서
 
